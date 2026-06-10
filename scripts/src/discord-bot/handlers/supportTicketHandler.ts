@@ -9,6 +9,7 @@ import {
   ModalSubmitInteraction,
   StringSelectMenuInteraction,
   GuildMember,
+  MessageFlags,
 } from "discord.js";
 import { Ticket } from "../db/models.js";
 import { buildSupportTicketEmbed } from "../embeds/support.js";
@@ -54,7 +55,7 @@ export async function handleSupportTicketSubmit(interaction: ModalSubmitInteract
   const guild = interaction.guild;
   if (!guild) return;
 
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   const issueType = interaction.fields.getTextInputValue("issue_type");
   const description = interaction.fields.getTextInputValue("description");
@@ -107,13 +108,13 @@ export async function handleRequestMiddleman(interaction: ButtonInteraction) {
 
   const mmFeeInput = new TextInputBuilder()
     .setCustomId("mm_fee")
-    .setLabel("Who is paying the MM fee? (buyer/seller/split)")
+    .setLabel("MM fee paid by? (buyer/seller/split)")
     .setStyle(TextInputStyle.Short)
     .setRequired(true);
 
   const inviteLinkInput = new TextInputBuilder()
     .setCustomId("invite_link")
-    .setLabel("Can the other trader join via invite? (Yes/No)")
+    .setLabel("Other trader can join via invite? (Yes/No)")
     .setStyle(TextInputStyle.Short)
     .setRequired(true);
 
@@ -138,7 +139,7 @@ export async function handleMiddlemanTicketSubmit(interaction: ModalSubmitIntera
   const guild = interaction.guild;
   if (!guild) return;
 
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   const otherTrader = interaction.fields.getTextInputValue("other_trader");
   const tradeType = interaction.fields.getTextInputValue("trade_type");
@@ -176,11 +177,11 @@ export async function handleMiddlemanTicketSubmit(interaction: ModalSubmitIntera
 export async function handleClaimTicket(interaction: ButtonInteraction) {
   const ticket = await Ticket.findOne({ channelId: interaction.channelId });
   if (!ticket) {
-    await interaction.reply({ content: "Ticket not found.", ephemeral: true });
+    await interaction.reply({ content: "Ticket not found.", flags: MessageFlags.Ephemeral });
     return;
   }
   if (ticket.claimedBy) {
-    await interaction.reply({ content: `This ticket is already claimed by <@${ticket.claimedBy}>.`, ephemeral: true });
+    await interaction.reply({ content: `This ticket is already claimed by <@${ticket.claimedBy}>.`, flags: MessageFlags.Ephemeral });
     return;
   }
   ticket.claimedBy = interaction.user.id;
@@ -226,6 +227,6 @@ export async function handleAddUserSubmit(interaction: ModalSubmitInteraction) {
     });
     await interaction.reply({ content: `<@${userId}> has been added to the ticket.` });
   } catch {
-    await interaction.reply({ content: "Could not find that user. Make sure the ID is correct.", ephemeral: true });
+    await interaction.reply({ content: "Could not find that user. Make sure the ID is correct.", flags: MessageFlags.Ephemeral });
   }
 }
