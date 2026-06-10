@@ -64,12 +64,12 @@ const CHANNEL_ORDER: PanelSpec[] = [
     build: (p, b, _t) => buildMiddlemanTosEmbed(p, b),
   },
   {
-    panelType: "request-middleman",
-    build: (p, b, _t) => buildMiddlemanTosEmbed(p, b),
+    panelType: "automm",
+    build: (p, b, _t) => buildEscrowEmbed(p, b),
   },
   {
-    panelType: "escrow",
-    build: (p, b, _t) => buildEscrowEmbed(p, b),
+    panelType: "marketplace-tos",
+    build: (p, b, _t) => buildTradingRulesEmbed(p, b),
   },
   {
     panelType: "verification",
@@ -96,13 +96,15 @@ export async function handleSwitchServer(message: Message, args: string[]) {
 
   const preset = PRESETS[presetKey];
 
-  let bannerUrl = args[1] ?? "";
-  let thumbnailUrl = args[2] ?? "";
+  const trimUrl = (u: string) => u.replace(/[&?]+$/, "").trim();
+
+  let bannerUrl = trimUrl(args[1] ?? "");
+  let thumbnailUrl = trimUrl(args[2] ?? "");
 
   if (!bannerUrl && message.attachments.size > 0) {
     const attachments = [...message.attachments.values()];
-    bannerUrl = attachments[0]?.url ?? "";
-    thumbnailUrl = attachments[1]?.url ?? thumbnailUrl;
+    bannerUrl = trimUrl(attachments[0]?.url ?? "");
+    thumbnailUrl = trimUrl(attachments[1]?.url ?? thumbnailUrl);
   }
 
   const statusMsg = await message.reply(`Switching server to **${preset.serverName}**... Please wait.`);
