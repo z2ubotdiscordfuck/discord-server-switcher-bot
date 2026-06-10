@@ -16,6 +16,8 @@ import { buildTosEmbed, buildTradingRulesEmbed } from "../embeds/tos.js";
 import { buildMiddlemanTosEmbed } from "../embeds/middlemanTos.js";
 import { buildEscrowEmbed } from "../embeds/escrow.js";
 import { buildVerificationEmbed } from "../embeds/verification.js";
+import { buildIndexingServiceEmbed } from "../embeds/indexingService.js";
+import { buildValuesEmbed } from "../embeds/values.js";
 
 const ADMIN_USERNAME = "imechoplay";
 
@@ -74,6 +76,14 @@ const CHANNEL_ORDER: PanelSpec[] = [
   {
     panelType: "verification",
     build: (p, b, _t) => buildVerificationEmbed(p, b),
+  },
+  {
+    panelType: "indexing-service",
+    build: (p, b, _t) => buildIndexingServiceEmbed(p, b),
+  },
+  {
+    panelType: "values",
+    build: (p, b, _t) => buildValuesEmbed(p, b),
   },
 ];
 
