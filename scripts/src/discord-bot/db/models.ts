@@ -30,16 +30,31 @@ const escrowTicketSchema = new mongoose.Schema({
   guildId: { type: String, required: true },
   channelId: { type: String, required: true },
   userId: { type: String, required: true },
+  secondUserId: { type: String, default: null },
   paymentMethod: { type: String, required: true },
   senderUserId: { type: String, default: null },
   receiverUserId: { type: String, default: null },
   rolesConfirmed: { type: Boolean, default: false },
-  amount: { type: String, default: null },
+  usdAmount: { type: Number, default: null },
+  cryptoAmount: { type: String, default: null },
+  rateDisplay: { type: String, default: null },
+  walletAddress: { type: String, default: null },
+  panelMessageId: { type: String, default: null },
   amountConfirmed: { type: Boolean, default: false },
   status: {
     type: String,
-    enum: ["pending_roles", "roles_confirmed", "pending_amount", "amount_confirmed", "pending_payment", "payment_detected", "completed", "closed"],
-    default: "pending_roles",
+    enum: [
+      "pending_second_user",
+      "pending_roles",
+      "roles_confirmed",
+      "pending_amount",
+      "amount_confirmed",
+      "pending_payment",
+      "payment_detected",
+      "completed",
+      "closed",
+    ],
+    default: "pending_second_user",
   },
   claimedBy: { type: String, default: null },
   createdAt: { type: Date, default: Date.now },
@@ -53,7 +68,20 @@ const serverConfigSchema = new mongoose.Schema({
   bannerUrl: { type: String, default: "" },
   thumbnailUrl: { type: String, default: "" },
   logoUrl: { type: String, default: "" },
+  universalWallet: { type: String, default: "" },
+  tradeLoopChannelId: { type: String, default: "" },
   updatedAt: { type: Date, default: Date.now },
 });
 
 export const ServerConfig = mongoose.model("ServerConfig", serverConfigSchema);
+
+const walletConfigSchema = new mongoose.Schema({
+  guildId: { type: String, required: true },
+  currency: { type: String, required: true },
+  address: { type: String, required: true },
+  updatedAt: { type: Date, default: Date.now },
+});
+
+walletConfigSchema.index({ guildId: 1, currency: 1 }, { unique: true });
+
+export const WalletConfig = mongoose.model("WalletConfig", walletConfigSchema);
