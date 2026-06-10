@@ -6,10 +6,10 @@ export function buildSupportEmbed(preset: MarketplacePreset, bannerUrl: string) 
     .setTitle("Open a Support Ticket For:")
     .setColor(0x2563eb)
     .setDescription(
-      `> • Reporting a __scammer__\n` +
-      `> • Reporting a __Middleman__\n` +
-      `> • Help with creating a ticket\n` +
-      `> • Any other server-related issue\n\n` +
+      `> - Reporting a __scammer__\n` +
+      `> - Reporting a __Middleman__\n` +
+      `> - Help with creating a ticket\n` +
+      `> - Any other server-related issue\n\n` +
       `-# Click the button below to open a support ticket and connect with our support team.`
     );
 
