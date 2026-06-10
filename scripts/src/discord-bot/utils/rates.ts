@@ -19,11 +19,7 @@ export interface RateResult {
 
 export async function fetchCryptoRate(currency: string, usdAmount: number): Promise<RateResult> {
   if (currency === "paypal") {
-    return {
-      rateUsd: 1,
-      cryptoAmount: usdAmount.toFixed(2),
-      displayRate: "1 USD = 1 USD (PayPal)",
-    };
+    return { rateUsd: 1, cryptoAmount: usdAmount.toFixed(2), displayRate: "1 USD = 1 USD (PayPal)" };
   }
 
   if (STABLECOINS.has(currency)) {
@@ -35,9 +31,7 @@ export async function fetchCryptoRate(currency: string, usdAmount: number): Prom
   }
 
   const coinId = COINGECKO_IDS[currency];
-  if (!coinId) {
-    return { rateUsd: 0, cryptoAmount: "N/A", displayRate: "Rate unavailable" };
-  }
+  if (!coinId) return { rateUsd: 0, cryptoAmount: "N/A", displayRate: "Rate unavailable" };
 
   try {
     const res = await fetch(
@@ -86,4 +80,19 @@ export function getCurrencyEmoji(currency: string): string {
     usdc_sol: "<:echousdc:1513916486627102976>",
   };
   return emojis[currency] ?? "";
+}
+
+export function getBlockchainName(currency: string): string {
+  const chains: Record<string, string> = {
+    btc: "Bitcoin Network",
+    eth: "Ethereum Network",
+    ltc: "Litecoin Network",
+    sol: "Solana Network",
+    usdt_erc20: "Ethereum Network (ERC-20)",
+    usdc_erc20: "Ethereum Network (ERC-20)",
+    usdt_sol: "Solana Network (SPL)",
+    usdc_sol: "Solana Network (SPL)",
+    paypal: "PayPal",
+  };
+  return chains[currency] ?? "Blockchain Network";
 }
