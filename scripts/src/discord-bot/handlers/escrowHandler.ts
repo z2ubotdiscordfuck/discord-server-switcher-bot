@@ -17,7 +17,7 @@ import {
 } from "discord.js";
 import { EscrowTicket, ServerConfig, WalletConfig } from "../db/models.js";
 import { PRESETS } from "../config/presets.js";
-import { fetchCryptoRate, getCurrencyLabel, getCurrencyEmoji } from "../utils/rates.js";
+import { fetchCryptoRate, getCurrencyLabel, getCurrencyEmoji, getBlockchainName } from "../utils/rates.js";
 
 async function getPresetAndBanner(guildId: string) {
   const config = await ServerConfig.findOne({ guildId });
@@ -339,7 +339,7 @@ export async function handleAutoMMConfirmAmount(interaction: ButtonInteraction) 
       `\`$${(escrow.usdAmount ?? 0).toFixed(2)}\` | \`${escrow.cryptoAmount ?? "N/A"} ${isPayPal ? "USD" : currLabel}\`\n\n` +
       (isPayPal
         ? `**PayPal Address / Email**\n\`\`\`${escrow.walletAddress}\`\`\`\n\n`
-        : `**Payment Address**\n\`\`\`${escrow.walletAddress}\`\`\`\n\n`) +
+        : `**${currLabel} Payment Address**\n\`\`\`${escrow.walletAddress}\`\`\`\n\n`) +
       `**Rate:** ${escrow.rateDisplay}\n\n` +
       `**Sender:** <@${escrow.senderUserId}> | **Receiver:** <@${escrow.receiverUserId}>\n\n` +
       `> ⚠ This trade will be automatically flagged in **20 minutes** if no payment activity is detected.\n` +
@@ -448,6 +448,111 @@ export async function handleAutoMMComplete(interaction: ButtonInteraction) {
   );
 
   await interaction.reply({ embeds: [completeEmbed], components: [row] });
+}
+
+// ─── Staff: .tradeconfirmationonlyadminmadebyecho ─────────────────────────────
+export async function handleTradeConfirmation(
+  guildId: string,
+  channelId: string,
+  staffUserId: string,
+  replyFn: (content: string) => Promise<void>
+) {
+  const escrow = await EscrowTicket.findOne({ guildId, channelId });
+  if (!escrow) {
+    await replyFn("No AutoMM ticket found for that channel.");
+    return;
+  }
+
+  const config = await ServerConfig.findOne({ guildId });
+  const preset = config ? PRESETS[config.preset] ?? PRESETS["playerauctions"] : PRESETS["playerauctions"];
+  const bannerUrl = config?.bannerUrl ?? "";
+
+  const currLabel = getCurrencyLabel(escrow.paymentMethod);
+  const currEmoji = getCurrencyEmoji(escrow.paymentMethod);
+  const blockchain = getBlockchainName(escrow.paymentMethod);
+  const cryptoAmount = escrow.cryptoAmount ?? "N/A";
+  const usdAmount = escrow.usdAmount ?? 0;
+  const txId = escrow.cryptoAmount ? `See ticket for TX` : "Awaiting TX";
+
+  const embed = new EmbedBuilder()
+    .setColor(0xf59e0b)
+    .setDescription(
+      `### <:echoreport:1513916471309242528> - Transaction Detected\n\n` +
+      `The transaction is currently **unconfirmed** and waiting for staff confirmation.\n\n` +
+      `**Transaction**\n` +
+      `\`${blockchain}\` \`${txId}\`\n\n` +
+      `**Amount Received** | **Required Amount**\n` +
+      `\`${cryptoAmount} ${currEmoji} ${currLabel}\` | \`$${usdAmount.toFixed(2)} USD\`\n\n` +
+      `**Sender:** <@${escrow.senderUserId ?? "Unknown"}> | **Receiver:** <@${escrow.receiverUserId ?? "Unknown"}>\n` +
+      `> Confirmed by <@${staffUserId}>`
+    );
+
+  if (bannerUrl) embed.setImage(bannerUrl);
+
+  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder().setCustomId("automm_complete").setLabel("Mark Complete").setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId("delete_ticket").setLabel("Close Ticket").setStyle(ButtonStyle.Danger)
+  );
+
+  const channel = await (await import("discord.js")).Client;
+  // Send to the ticket channel
+  await replyFn(`✅ Confirmation embed sent to <#${channelId}>.`);
+
+  return { embed, row };
+}
+
+export async function sendTradeConfirmationToChannel(
+  guildId: string,
+  targetChannelId: string,
+  staffUserId: string,
+  client: import("discord.js").Client
+): Promise<string> {
+  const escrow = await EscrowTicket.findOne({ guildId, channelId: targetChannelId });
+  if (!escrow) return "No AutoMM ticket found for that channel.";
+
+  const config = await ServerConfig.findOne({ guildId });
+  const preset = config ? PRESETS[config.preset] ?? PRESETS["playerauctions"] : PRESETS["playerauctions"];
+  const bannerUrl = config?.bannerUrl ?? "";
+
+  const currLabel = getCurrencyLabel(escrow.paymentMethod);
+  const currEmoji = getCurrencyEmoji(escrow.paymentMethod);
+  const blockchain = getBlockchainName(escrow.paymentMethod);
+  const cryptoAmount = escrow.cryptoAmount ?? "N/A";
+  const usdAmount = escrow.usdAmount ?? 0;
+
+  const embed = new EmbedBuilder()
+    .setColor(0xf59e0b)
+    .setDescription(
+      `### <:echoreport:1513916471309242528> - Transaction Detected\n\n` +
+      `The transaction is currently **unconfirmed** and waiting for staff confirmation.\n\n` +
+      `**Transaction**\n` +
+      `\`${blockchain}\`\n\n` +
+      `**Amount Received** | **Required Amount**\n` +
+      `\`${cryptoAmount} ${currEmoji} ${currLabel}\` | \`$${usdAmount.toFixed(2)} USD\`\n\n` +
+      `**Sender:** <@${escrow.senderUserId ?? "Unknown"}> | **Receiver:** <@${escrow.receiverUserId ?? "Unknown"}>\n` +
+      `> Confirmed by <@${staffUserId}>`
+    );
+
+  if (bannerUrl) embed.setImage(bannerUrl);
+
+  try {
+    const guild = await client.guilds.fetch(guildId);
+    const ch = await guild.channels.fetch(targetChannelId);
+    if (!ch || !(ch instanceof TextChannel)) return "Could not find the ticket channel.";
+
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder().setCustomId("automm_complete").setLabel("Mark Complete").setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId("delete_ticket").setLabel("Close Ticket").setStyle(ButtonStyle.Danger)
+    );
+
+    await ch.send({ embeds: [embed], components: [row] });
+
+    escrow.status = "payment_detected";
+    await escrow.save();
+    return `✅ Transaction confirmation sent to <#${targetChannelId}>.`;
+  } catch {
+    return "Failed to send confirmation — check channel permissions.";
+  }
 }
 
 // ─── Reject amount → re-enter ─────────────────────────────────────────────────
