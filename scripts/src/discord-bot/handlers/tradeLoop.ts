@@ -3,21 +3,21 @@ import { Client, EmbedBuilder, TextChannel } from "discord.js";
 const MIDDLEMAN_ROLE_ID = "1481044272756166801";
 const ARROW_EMOJI = "<a:arrowslogo:1514191782211096628>";
 
-const CUSTOM_EMOJIS = [
-  "<:DragonFruit:1514189379332214944>",
-  "<:Dragoncanneloni:1514189381794005002>",
-  "<:raccoon:1514189376337346620>",
-  "<:Meowl:1514189387108319333>",
-  "<:strawberryelephant:1514189384482553867>",
-  "<:Fragrama:1514189389901594625>",
-  "<:echoltc:1513916480427786311>",
-  "<:echpaypal:1513916484802445332>",
-  "<:commando:1514189371203653692>",
-  "<:frozen_tomatrio:1514189374064033802>",
-  "<:KitsuneFruit:1514189393030811658>",
-  "<:robux:1514189397560656003>",
+// Each pair: the emoji and the matching item name used in vouch text
+const VOUCH_PAIRS = [
+  { name: "Dragon Fruit",       emoji: "<:DragonFruit:1514189379332214944>"      },
+  { name: "Canneloni",          emoji: "<:Dragoncanneloni:1514189381794005002>"   },
+  { name: "Raccoon",            emoji: "<:raccoon:1514189376337346620>"           },
+  { name: "Meowl",              emoji: "<:Meowl:1514189387108319333>"             },
+  { name: "Strawberry Elephant",emoji: "<:strawberryelephant:1514189384482553867>"},
+  { name: "Fragrama",           emoji: "<:Fragrama:1514189389901594625>"          },
+  { name: "Kitsune",            emoji: "<:KitsuneFruit:1514189393030811658>"      },
+  { name: "Robux",              emoji: "<:robux:1514189397560656003>"             },
+  { name: "Commando",           emoji: "<:commando:1514189371203653692>"          },
+  { name: "Frozen Tomatrio",    emoji: "<:frozen_tomatrio:1514189374064033802>"   },
 ];
 
+// AutoMM crypto emojis shown in header
 const AUTOMM_CRYPTO_EMOJIS =
   "<:echoltc:1513916480427786311> " +
   "<:echobtc:1513916482294120640> " +
@@ -27,27 +27,22 @@ const AUTOMM_CRYPTO_EMOJIS =
   "<:echousdt:1513916491328655410> " +
   "<:echpaypal:1513916484802445332>";
 
+// Realistic small amounts: min/max in USD, not crypto units
 const AUTOMM_CURRENCIES = [
-  { label: "BTC",  emoji: "<:echobtc:1513916482294120640>",   min: 0.00003, max: 14.8,   rate: 67400 },
-  { label: "ETH",  emoji: "<:echoeth:1513916818962649108>",   min: 0.0006,  max: 284,    rate: 3520  },
-  { label: "LTC",  emoji: "<:echoltc:1513916480427786311>",   min: 0.02,    max: 11360,  rate: 88    },
-  { label: "SOL",  emoji: "<:echosol:1513916493803552798>",   min: 0.01,    max: 5952,   rate: 168   },
-  { label: "USDT", emoji: "<:echousdt:1513916491328655410>",  min: 2,       max: 1000000, rate: 1    },
-  { label: "USDC", emoji: "<:echousdc:1513916486627102976>",  min: 2,       max: 1000000, rate: 1    },
+  { label: "BTC",  emoji: "<:echobtc:1513916482294120640>",   usdMin: 2,  usdMax: 400,  rate: 67400, decimals: 8 },
+  { label: "ETH",  emoji: "<:echoeth:1513916818962649108>",   usdMin: 2,  usdMax: 400,  rate: 3520,  decimals: 6 },
+  { label: "LTC",  emoji: "<:echoltc:1513916480427786311>",   usdMin: 2,  usdMax: 300,  rate: 88,    decimals: 4 },
+  { label: "SOL",  emoji: "<:echosol:1513916493803552798>",   usdMin: 2,  usdMax: 350,  rate: 168,   decimals: 4 },
+  { label: "USDT", emoji: "<:echousdt:1513916491328655410>",  usdMin: 2,  usdMax: 500,  rate: 1,     decimals: 2 },
+  { label: "USDC", emoji: "<:echousdc:1513916486627102976>",  usdMin: 2,  usdMax: 500,  rate: 1,     decimals: 2 },
 ];
 
 const MM_CURRENCIES = [
-  { label: "PayPal", emoji: "<:echpaypal:1513916484802445332>", min: 2, max: 50000,  rate: 1    },
-  { label: "BTC",    emoji: "<:echobtc:1513916482294120640>",   min: 0.00003, max: 14.8, rate: 67400 },
-  { label: "ETH",    emoji: "<:echoeth:1513916818962649108>",   min: 0.0006, max: 284, rate: 3520  },
-  { label: "LTC",    emoji: "<:echoltc:1513916480427786311>",   min: 0.02, max: 11360, rate: 88    },
-  { label: "Robux",  emoji: "<:robux:1514189397560656003>",     min: 200, max: 100000, rate: 0.004 },
-];
-
-const VOUCH_ITEMS = [
-  "Dragon Fruit", "Kitsune", "Raccoon", "Canneloni", "Meowl Pet",
-  "Strawberry Elephant", "Fragrama", "Robux", "Frozen Tomatrio", "Commando",
-  "Limited Pet", "Rare Item", "Game Currency", "Season Pass", "Dragon",
+  { label: "PayPal", emoji: "<:echpaypal:1513916484802445332>", usdMin: 2, usdMax: 250, rate: 1,    decimals: 2 },
+  { label: "BTC",    emoji: "<:echobtc:1513916482294120640>",   usdMin: 2, usdMax: 300, rate: 67400,decimals: 8 },
+  { label: "ETH",    emoji: "<:echoeth:1513916818962649108>",   usdMin: 2, usdMax: 300, rate: 3520, decimals: 6 },
+  { label: "LTC",    emoji: "<:echoltc:1513916480427786311>",   usdMin: 2, usdMax: 200, rate: 88,   decimals: 4 },
+  { label: "Robux",  emoji: "<:robux:1514189397560656003>",     usdMin: 2, usdMax: 100, rate: 0.004,decimals: 0 },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -59,7 +54,7 @@ function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function pick2Random<T>(arr: T[]): [T, T] {
+function pick2Unique<T>(arr: T[]): [T, T] {
   const shuffled = [...arr].sort(() => Math.random() - 0.5);
   return [shuffled[0], shuffled[1]];
 }
@@ -79,15 +74,13 @@ function generateTxId(label: string): string {
   return randomHex(64);
 }
 
-function formatAmount(value: number, label: string): string {
-  if (label === "USDT" || label === "USDC" || label === "PayPal") return value.toFixed(2);
-  if (label === "Robux") return Math.floor(value).toLocaleString();
-  if (value < 0.01) return value.toFixed(8).replace(/\.?0+$/, "");
-  if (value < 1) return value.toFixed(6).replace(/\.?0+$/, "");
-  return value.toFixed(4).replace(/\.?0+$/, "");
+function formatCrypto(usd: number, rate: number, decimals: number): string {
+  const amount = usd / rate;
+  if (decimals === 0) return Math.floor(amount).toLocaleString();
+  return amount.toFixed(decimals).replace(/\.?0+$/, "");
 }
 
-// ─── Random member helpers ────────────────────────────────────────────────────
+// ─── Member helpers ───────────────────────────────────────────────────────────
 async function getRandomMemberNames(client: Client, guildId: string): Promise<[string, string]> {
   try {
     const guild = await client.guilds.fetch(guildId);
@@ -104,32 +97,28 @@ async function getRandomMemberNames(client: Client, guildId: string): Promise<[s
 async function getRandomMiddlemanId(client: Client, guildId: string): Promise<string | null> {
   try {
     const guild = await client.guilds.fetch(guildId);
-    const role = await guild.roles.fetch(MIDDLEMAN_ROLE_ID);
-    if (!role) return null;
     const members = await guild.members.fetch({ limit: 200 });
     const mms = members.filter((m) => m.roles.cache.has(MIDDLEMAN_ROLE_ID) && !m.user.bot);
     if (mms.size === 0) return null;
-    const arr = [...mms.values()];
-    return pickRandom(arr).id;
+    return pickRandom([...mms.values()]).id;
   } catch {
     return null;
   }
 }
 
-// ─── AutoMM embed ─────────────────────────────────────────────────────────────
+// ─── AutoMM trade embed ───────────────────────────────────────────────────────
 function buildAutoMMTradeEmbed(): EmbedBuilder {
   const cur = pickRandom(AUTOMM_CURRENCIES);
-  const usd = rand(cur.min * cur.rate, cur.max * cur.rate);
-  const crypto = usd / cur.rate;
-  const amountStr = formatAmount(crypto, cur.label);
+  const usd = rand(cur.usdMin, cur.usdMax);
+  const cryptoStr = formatCrypto(usd, cur.rate, cur.decimals);
   const usdStr = usd.toFixed(2);
-  const customEmoji = pickRandom(CUSTOM_EMOJIS);
-  const includeTx = Math.random() > 0.35;
+  const customEmoji = pickRandom(VOUCH_PAIRS).emoji;
+  const includeTx = Math.random() > 0.4;
   const txId = includeTx ? generateTxId(cur.label) : null;
 
   let desc =
     `## ${customEmoji} ${AUTOMM_CRYPTO_EMOJIS}  ・Trade Completed\n` +
-    `### **\`${amountStr}\` ${cur.emoji} ${cur.label}** ($${usdStr} USD)\n` +
+    `### **\`${cryptoStr}\` ${cur.emoji} ${cur.label}** ($${usdStr} USD)\n` +
     `### Sender\n\`Anonymous\`\n` +
     `### Receiver\n\`Anonymous\``;
 
@@ -137,39 +126,33 @@ function buildAutoMMTradeEmbed(): EmbedBuilder {
     desc += `\n### Transaction ID\n\`${txId}\``;
   }
 
-  return new EmbedBuilder()
-    .setColor(0x2563eb)
-    .setDescription(desc);
+  return new EmbedBuilder().setColor(0x2563eb).setDescription(desc);
 }
 
-// ─── MM vouch embed ───────────────────────────────────────────────────────────
+// ─── MM vouch embed (emoji matches vouch text) ────────────────────────────────
 function buildMMVouchEmbed(
   senderName: string,
   receiverName: string,
   middlemanId: string | null
 ): EmbedBuilder {
   const cur = pickRandom(MM_CURRENCIES);
-  const usd = rand(cur.min * cur.rate, cur.max * cur.rate);
-  const crypto = usd / cur.rate;
-  const amountStr = formatAmount(crypto, cur.label);
+  const usd = rand(cur.usdMin, cur.usdMax);
+  const cryptoStr = formatCrypto(usd, cur.rate, cur.decimals);
   const usdStr = usd.toFixed(2);
 
-  const [emoji1, emoji2] = pick2Random(CUSTOM_EMOJIS);
-  const item1 = pickRandom(VOUCH_ITEMS);
-  const item2 = pickRandom(VOUCH_ITEMS.filter((i) => i !== item1));
+  // Pick 2 matched pairs — emoji and name are consistent
+  const [pair1, pair2] = pick2Unique(VOUCH_PAIRS);
   const mmPing = middlemanId ? `<@${middlemanId}>` : "the Middleman";
 
   const desc =
-    `## ${emoji1} ${ARROW_EMOJI} ${emoji2}  Trade Completed\n` +
-    `### **\`${amountStr}\` ${cur.emoji} ${cur.label}** ($${usdStr} USD)\n` +
+    `## ${pair1.emoji} ${ARROW_EMOJI} ${pair2.emoji}  Trade Completed\n` +
+    `### **\`${cryptoStr}\` ${cur.emoji} ${cur.label}** ($${usdStr} USD)\n` +
     `### Sender\n\`${senderName}\`\n` +
     `### Receiver\n\`${receiverName}\`\n` +
     `__Vouch Proof__\n` +
-    `Vouch ${mmPing} ${item1} for ${item2}.`;
+    `Vouch ${mmPing} ${pair1.name} for ${pair2.name}.`;
 
-  return new EmbedBuilder()
-    .setColor(0x16a34a)
-    .setDescription(desc);
+  return new EmbedBuilder().setColor(0x16a34a).setDescription(desc);
 }
 
 // ─── Loop state ───────────────────────────────────────────────────────────────
@@ -188,20 +171,16 @@ function scheduleNext(client: Client, guildId: string, channelId: string) {
       }
 
       const isVouch = Math.random() < 0.4;
-
       if (isVouch) {
         const [sender, receiver] = await getRandomMemberNames(client, guildId);
         const mmId = await getRandomMiddlemanId(client, guildId);
-        const embed = buildMMVouchEmbed(sender, receiver, mmId);
-        await channel.send({ embeds: [embed] });
+        await channel.send({ embeds: [buildMMVouchEmbed(sender, receiver, mmId)] });
       } else {
-        const embed = buildAutoMMTradeEmbed();
-        await channel.send({ embeds: [embed] });
+        await channel.send({ embeds: [buildAutoMMTradeEmbed()] });
       }
     } catch (err) {
       console.error("[TradeLoop] Post error:", err);
     }
-
     scheduleNext(client, guildId, channelId);
   }, delay);
 
