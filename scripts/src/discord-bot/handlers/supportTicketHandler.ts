@@ -174,20 +174,58 @@ export async function handleMiddlemanTicketSubmit(interaction: ModalSubmitIntera
   await interaction.editReply({ content: `Your Middleman ticket has been created: <#${ticketChannel.id}>` });
 }
 
+const MM_ROLE_ID = "1481044272756166801";
+
 export async function handleClaimTicket(interaction: ButtonInteraction) {
+  const guild = interaction.guild;
+  if (!guild) return;
+
+  const member = await guild.members.fetch(interaction.user.id).catch(() => null);
+  const hasMMRole = member?.roles.cache.has(MM_ROLE_ID) ?? false;
+
+  // Try regular ticket first, then escrow ticket
+  const { EscrowTicket } = await import("../db/models.js");
   const ticket = await Ticket.findOne({ channelId: interaction.channelId });
-  if (!ticket) {
+  const escrow = ticket ? null : await EscrowTicket.findOne({ channelId: interaction.channelId });
+
+  if (!ticket && !escrow) {
     await interaction.reply({ content: "Ticket not found.", flags: MessageFlags.Ephemeral });
     return;
   }
-  if (ticket.claimedBy) {
-    await interaction.reply({ content: `This ticket is already claimed by <@${ticket.claimedBy}>.`, flags: MessageFlags.Ephemeral });
+
+  const existingClaim = ticket?.claimedBy ?? escrow?.claimedBy;
+  if (existingClaim) {
+    await interaction.reply({ content: `This ticket is already claimed by <@${existingClaim}>.`, flags: MessageFlags.Ephemeral });
     return;
   }
-  ticket.claimedBy = interaction.user.id;
-  ticket.status = "claimed";
-  await ticket.save();
+
+  if (ticket) {
+    ticket.claimedBy = interaction.user.id;
+    ticket.status = "claimed";
+    await ticket.save();
+  } else if (escrow) {
+    escrow.claimedBy = interaction.user.id;
+    await escrow.save();
+  }
+
   await interaction.reply({ content: `Ticket claimed by <@${interaction.user.id}>.` });
+
+  // Lock the channel if claimer has MM role
+  if (hasMMRole && interaction.channel && "permissionOverwrites" in interaction.channel) {
+    const ch = interaction.channel as import("discord.js").TextChannel;
+    try {
+      // Deny @everyone from sending messages
+      await ch.permissionOverwrites.edit(guild.roles.everyone, { SendMessages: false });
+      // Ensure the claimer can still send
+      await ch.permissionOverwrites.edit(interaction.user.id, {
+        ViewChannel: true,
+        SendMessages: true,
+      });
+      await ch.send({ content: `🔒 This ticket has been locked by <@${interaction.user.id}>. Only staff can now send messages here.` });
+    } catch (err) {
+      console.error("[ClaimTicket] Failed to lock channel:", err);
+    }
+  }
 }
 
 export async function handleDeleteTicket(interaction: ButtonInteraction) {
