@@ -64,6 +64,8 @@ export const CHANNEL_IDS = [
   "1502341530369658880",
   "1502297109213351966",
   "1513910976355766323",
+  "1506336211856523274",
+  "1502341728542130176",
 ];
 
 export const CHANNEL_NAMES: Record<string, string> = {
@@ -79,6 +81,8 @@ export const CHANNEL_NAMES: Record<string, string> = {
   "1502341530369658880": "automm",
   "1502297109213351966": "marketplace-tos",
   "1513910976355766323": "verification",
+  "1506336211856523274": "indexing-service",
+  "1502341728542130176": "values",
 };
 
 export const REACTION_ROLE_IDS = [
