@@ -35,6 +35,7 @@ import {
   sendTradeConfirmationToChannel,
 } from "./handlers/escrowHandler.js";
 import { startTradeLoop, stopTradeLoop } from "./handlers/tradeLoop.js";
+import { handleIndexingSelect, handleIndexingModalSubmit } from "./handlers/indexingHandler.js";
 import { ServerConfig, WalletConfig } from "./db/models.js";
 import { getCurrencyLabel } from "./utils/rates.js";
 
@@ -209,6 +210,8 @@ client.on("interactionCreate", async (interaction) => {
     } else if (interaction.isStringSelectMenu()) {
       if (interaction.customId === "escrow_payment_method") {
         await handleEscrowPaymentSelect(interaction as StringSelectMenuInteraction);
+      } else if (interaction.customId === "indexing_base_select") {
+        await handleIndexingSelect(interaction as StringSelectMenuInteraction);
       }
 
     } else if (interaction.isModalSubmit()) {
@@ -225,6 +228,9 @@ client.on("interactionCreate", async (interaction) => {
         await handleAutoMMAmountSubmit(interaction as ModalSubmitInteraction);
       } else if (id === "add_user_modal") {
         await handleAddUserSubmit(interaction as ModalSubmitInteraction);
+      } else if (id.startsWith("indexing_modal_")) {
+        const baseValue = id.replace("indexing_modal_", "");
+        await handleIndexingModalSubmit(interaction as ModalSubmitInteraction, baseValue);
       }
     }
   } catch (err) {
