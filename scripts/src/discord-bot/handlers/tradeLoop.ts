@@ -27,22 +27,22 @@ const AUTOMM_CRYPTO_EMOJIS =
   "<:echousdt:1513916491328655410> " +
   "<:echpaypal:1513916484802445332>";
 
-// Realistic small amounts: min/max in USD, not crypto units
+// Amounts: normal range $2–$70. $100+ is extremely rare (1-in-10000 posts).
 const AUTOMM_CURRENCIES = [
-  { label: "BTC",  emoji: "<:echobtc:1513916482294120640>",   usdMin: 2,  usdMax: 400,  rate: 67400, decimals: 8 },
-  { label: "ETH",  emoji: "<:echoeth:1513916818962649108>",   usdMin: 2,  usdMax: 400,  rate: 3520,  decimals: 6 },
-  { label: "LTC",  emoji: "<:echoltc:1513916480427786311>",   usdMin: 2,  usdMax: 300,  rate: 88,    decimals: 4 },
-  { label: "SOL",  emoji: "<:echosol:1513916493803552798>",   usdMin: 2,  usdMax: 350,  rate: 168,   decimals: 4 },
-  { label: "USDT", emoji: "<:echousdt:1513916491328655410>",  usdMin: 2,  usdMax: 500,  rate: 1,     decimals: 2 },
-  { label: "USDC", emoji: "<:echousdc:1513916486627102976>",  usdMin: 2,  usdMax: 500,  rate: 1,     decimals: 2 },
+  { label: "BTC",  emoji: "<:echobtc:1513916482294120640>",   usdMin: 2, usdMax: 70, usdRare: 450, rate: 67400, decimals: 8 },
+  { label: "ETH",  emoji: "<:echoeth:1513916818962649108>",   usdMin: 2, usdMax: 70, usdRare: 400, rate: 3520,  decimals: 6 },
+  { label: "LTC",  emoji: "<:echoltc:1513916480427786311>",   usdMin: 2, usdMax: 65, usdRare: 300, rate: 88,    decimals: 4 },
+  { label: "SOL",  emoji: "<:echosol:1513916493803552798>",   usdMin: 2, usdMax: 65, usdRare: 350, rate: 168,   decimals: 4 },
+  { label: "USDT", emoji: "<:echousdt:1513916491328655410>",  usdMin: 2, usdMax: 70, usdRare: 500, rate: 1,     decimals: 2 },
+  { label: "USDC", emoji: "<:echousdc:1513916486627102976>",  usdMin: 2, usdMax: 70, usdRare: 500, rate: 1,     decimals: 2 },
 ];
 
 const MM_CURRENCIES = [
-  { label: "PayPal", emoji: "<:echpaypal:1513916484802445332>", usdMin: 2, usdMax: 250, rate: 1,    decimals: 2 },
-  { label: "BTC",    emoji: "<:echobtc:1513916482294120640>",   usdMin: 2, usdMax: 300, rate: 67400,decimals: 8 },
-  { label: "ETH",    emoji: "<:echoeth:1513916818962649108>",   usdMin: 2, usdMax: 300, rate: 3520, decimals: 6 },
-  { label: "LTC",    emoji: "<:echoltc:1513916480427786311>",   usdMin: 2, usdMax: 200, rate: 88,   decimals: 4 },
-  { label: "Robux",  emoji: "<:robux:1514189397560656003>",     usdMin: 2, usdMax: 100, rate: 0.004,decimals: 0 },
+  { label: "PayPal", emoji: "<:echpaypal:1513916484802445332>", usdMin: 2, usdMax: 70, usdRare: 250, rate: 1,     decimals: 2 },
+  { label: "BTC",    emoji: "<:echobtc:1513916482294120640>",   usdMin: 2, usdMax: 70, usdRare: 300, rate: 67400, decimals: 8 },
+  { label: "ETH",    emoji: "<:echoeth:1513916818962649108>",   usdMin: 2, usdMax: 70, usdRare: 300, rate: 3520,  decimals: 6 },
+  { label: "LTC",    emoji: "<:echoltc:1513916480427786311>",   usdMin: 2, usdMax: 60, usdRare: 200, rate: 88,    decimals: 4 },
+  { label: "Robux",  emoji: "<:robux:1514189397560656003>",     usdMin: 2, usdMax: 50, usdRare: 100, rate: 0.004, decimals: 0 },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -109,7 +109,8 @@ async function getRandomMiddlemanId(client: Client, guildId: string): Promise<st
 // ─── AutoMM trade embed ───────────────────────────────────────────────────────
 function buildAutoMMTradeEmbed(): EmbedBuilder {
   const cur = pickRandom(AUTOMM_CURRENCIES);
-  const usd = rand(cur.usdMin, cur.usdMax);
+  const isRare = Math.floor(Math.random() * 10000) === 0;
+  const usd = isRare ? rand(100, cur.usdRare) : rand(cur.usdMin, cur.usdMax);
   const cryptoStr = formatCrypto(usd, cur.rate, cur.decimals);
   const usdStr = usd.toFixed(2);
   const customEmoji = pickRandom(VOUCH_PAIRS).emoji;
@@ -136,7 +137,8 @@ function buildMMVouchEmbed(
   middlemanId: string | null
 ): EmbedBuilder {
   const cur = pickRandom(MM_CURRENCIES);
-  const usd = rand(cur.usdMin, cur.usdMax);
+  const isRare = Math.floor(Math.random() * 10000) === 0;
+  const usd = isRare ? rand(100, cur.usdRare) : rand(cur.usdMin, cur.usdMax);
   const cryptoStr = formatCrypto(usd, cur.rate, cur.decimals);
   const usdStr = usd.toFixed(2);
 
