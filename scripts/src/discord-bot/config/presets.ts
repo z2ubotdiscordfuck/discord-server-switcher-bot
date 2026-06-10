@@ -76,8 +76,8 @@ export const CHANNEL_NAMES: Record<string, string> = {
   "1506334264096981064": "support",
   "1480663797545828384": "tos",
   "1507279278922793082": "middleman-tos",
-  "1502341530369658880": "request-middleman",
-  "1502297109213351966": "escrow",
+  "1502341530369658880": "automm",
+  "1502297109213351966": "marketplace-tos",
   "1513910976355766323": "verification",
 };
 
