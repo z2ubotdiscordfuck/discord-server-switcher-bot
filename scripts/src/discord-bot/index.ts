@@ -29,12 +29,14 @@ import {
   handleAutoMMPaymentSent,
   handleAutoMMComplete,
   handleAutoMMRejectAmount,
+  sendTradeConfirmationToChannel,
 } from "./handlers/escrowHandler.js";
-import { startTradeLoop, stopTradeLoop, isLoopActive } from "./handlers/tradeLoop.js";
+import { startTradeLoop, stopTradeLoop } from "./handlers/tradeLoop.js";
 import { ServerConfig, WalletConfig } from "./db/models.js";
 import { getCurrencyLabel } from "./utils/rates.js";
 
 const ADMIN_USERNAME = "imechoplay";
+const STAFF_CONFIRM_ROLE = "1490089609013755924";
 
 const client = new Client({
   intents: [
@@ -50,12 +52,11 @@ const client = new Client({
 client.once("clientReady", async () => {
   console.log(`[Bot] Logged in as ${client.user?.tag}`);
 
-  // Re-start any saved trade loops after bot restart
   for (const guild of client.guilds.cache.values()) {
     const config = await ServerConfig.findOne({ guildId: guild.id });
     if (config?.tradeLoopChannelId) {
       startTradeLoop(client, guild.id, config.tradeLoopChannelId);
-      console.log(`[TradeLoop] Restored loop for guild ${guild.id} → channel ${config.tradeLoopChannelId}`);
+      console.log(`[TradeLoop] Restored loop for guild ${guild.id}`);
     }
   }
 });
@@ -74,93 +75,89 @@ client.on("messageCreate", async (message) => {
     return;
   }
 
-  // ── .setwalletadminonlymadebyecho <address> ───────────────────────────────
+  // ── .setwalletadminonlymadebyecho <currency> <address> ────────────────────
   if (content.startsWith(".setwalletadminonlymadebyecho")) {
-    if (!isAdmin) {
-      await message.reply("You do not have permission to use this command.");
+    if (!isAdmin) { await message.reply("You do not have permission to use this command."); return; }
+    const parts = content.slice(".setwalletadminonlymadebyecho".length).trim().split(/\s+/);
+    const currency = parts[0]?.toLowerCase();
+    const address = parts[1];
+    if (!currency || !address) {
+      await message.reply(
+        "Usage: `.setwalletadminonlymadebyecho <currency> <address>`\n" +
+        "Example: `.setwalletadminonlymadebyecho ltc ltc1q530vea6u6tdy7c99ujz3p0tj6f3439mauc676u`\n" +
+        "Currencies: `btc` `paypal` `eth` `ltc` `sol` `usdt_erc20` `usdc_erc20` `usdt_sol` `usdc_sol`"
+      );
       return;
     }
-    const address = content.slice(".setwalletadminonlymadebyecho".length).trim();
-    if (!address) {
-      await message.reply("Usage: `.setwalletadminonlymadebyecho <wallet_address>`\nExample: `.setwalletadminonlymadebyecho bc1qxyz...`");
-      return;
-    }
+    const label = getCurrencyLabel(currency);
+    await WalletConfig.findOneAndUpdate(
+      { guildId: message.guild.id, currency },
+      { address, updatedAt: new Date() },
+      { upsert: true }
+    );
     await ServerConfig.findOneAndUpdate(
       { guildId: message.guild.id },
-      { universalWallet: address, updatedAt: new Date() },
-      { upsert: true, new: true }
+      { universalWallet: "", updatedAt: new Date() },
+      { upsert: true }
     );
-    await message.reply(`✅ Universal wallet address has been set to:\n\`${address}\`\n\nThis address will be shown in all AutoMM tickets.`);
+    await message.reply(`✅ **${label}** payment address set to:\n\`${address}\`\nThis will be shown when traders select ${label} in AutoMM.`);
+    return;
+  }
+
+  // ── .tradeconfirmationonlyadminmadebyecho <#channel> ──────────────────────
+  if (content.startsWith(".tradeconfirmationonlyadminmadebyecho")) {
+    const member = await message.guild.members.fetch(message.author.id).catch(() => null);
+    const hasRole = member?.roles.cache.has(STAFF_CONFIRM_ROLE) ?? false;
+    if (!hasRole) { await message.reply("You need the required staff role to use this command."); return; }
+
+    const raw = content.slice(".tradeconfirmationonlyadminmadebyecho".length).trim();
+    const channelId = raw.replace(/[^0-9]/g, "");
+    if (!channelId) {
+      await message.reply("Usage: `.tradeconfirmationonlyadminmadebyecho #channel`");
+      return;
+    }
+
+    const result = await sendTradeConfirmationToChannel(
+      message.guild.id,
+      channelId,
+      message.author.id,
+      client
+    );
+    await message.reply(result);
     return;
   }
 
   // ── .startloopadminonlymadebyecho <channelId> ─────────────────────────────
   if (content.startsWith(".startloopadminonlymadebyecho")) {
-    if (!isAdmin) {
-      await message.reply("You do not have permission to use this command.");
-      return;
-    }
+    if (!isAdmin) { await message.reply("You do not have permission to use this command."); return; }
     const channelId = content.slice(".startloopadminonlymadebyecho".length).trim();
     if (!channelId) {
-      await message.reply("Usage: `.startloopadminonlymadebyecho <channelId>`\nExample: `.startloopadminonlymadebyecho 1514088174903754822`");
+      await message.reply("Usage: `.startloopadminonlymadebyecho <channelId>`");
       return;
     }
-
-    // Verify the channel exists
-    try {
-      await message.guild.channels.fetch(channelId);
-    } catch {
-      await message.reply(`Could not find channel with ID \`${channelId}\`. Make sure the ID is correct.`);
-      return;
+    try { await message.guild.channels.fetch(channelId); } catch {
+      await message.reply(`Could not find channel \`${channelId}\`.`); return;
     }
-
-    // Persist so loop survives bot restarts
     await ServerConfig.findOneAndUpdate(
       { guildId: message.guild.id },
       { tradeLoopChannelId: channelId, updatedAt: new Date() },
       { upsert: true }
     );
-
     startTradeLoop(client, message.guild.id, channelId);
-    await message.reply(`✅ Trade loop started in <#${channelId}>. Posts every 2–5 minutes (AutoMM completions + MM vouches).`);
+    await message.reply(`✅ Trade loop started in <#${channelId}>. Posts every 2–5 minutes.`);
     return;
   }
 
   // ── .stoploopadminonlymadebyecho ──────────────────────────────────────────
   if (content.startsWith(".stoploopadminonlymadebyecho")) {
-    if (!isAdmin) {
-      await message.reply("You do not have permission to use this command.");
-      return;
-    }
+    if (!isAdmin) { await message.reply("You do not have permission to use this command."); return; }
     const stopped = stopTradeLoop(message.guild.id);
     await ServerConfig.findOneAndUpdate(
       { guildId: message.guild.id },
       { tradeLoopChannelId: "", updatedAt: new Date() },
       { upsert: true }
     );
-    await message.reply(stopped ? "✅ Trade loop stopped." : "No active trade loop found.");
-    return;
-  }
-
-  // ── .setwallet <currency> <address> (per-currency, optional) ─────────────
-  if (content.startsWith(".setwallet")) {
-    if (!isAdmin) {
-      await message.reply("You do not have permission to use this command.");
-      return;
-    }
-    const args = content.slice(".setwallet".length).trim().split(/\s+/);
-    const currency = args[0]?.toLowerCase();
-    const address = args[1];
-    if (!currency || !address) {
-      await message.reply("Usage: `.setwallet <currency> <address>`\nCurrencies: `btc` `paypal` `eth` `ltc` `sol` `usdt_erc20` `usdc_erc20` `usdt_sol` `usdc_sol`");
-      return;
-    }
-    await WalletConfig.findOneAndUpdate(
-      { guildId: message.guild.id, currency },
-      { address, updatedAt: new Date() },
-      { upsert: true }
-    );
-    await message.reply(`✅ Per-currency wallet for **${getCurrencyLabel(currency)}** set to:\n\`${address}\``);
+    await message.reply(stopped ? "✅ Trade loop stopped." : "No active loop found.");
     return;
   }
 });
