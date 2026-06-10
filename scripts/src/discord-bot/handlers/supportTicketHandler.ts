@@ -10,12 +10,25 @@ import {
   StringSelectMenuInteraction,
   GuildMember,
   MessageFlags,
+  EmbedBuilder,
+  TextChannel,
 } from "discord.js";
 import { Ticket } from "../db/models.js";
 import { buildSupportTicketEmbed } from "../embeds/support.js";
 import { buildMiddlemanTicketEmbed } from "../embeds/middlemanTicket.js";
 import { ServerConfig } from "../db/models.js";
 import { PRESETS } from "../config/presets.js";
+
+const LOG_CHANNEL_ID = "1480663812721086689";
+
+async function sendLog(interaction: ButtonInteraction | ModalSubmitInteraction, embed: EmbedBuilder) {
+  try {
+    const ch = await interaction.client.channels.fetch(LOG_CHANNEL_ID);
+    if (ch && ch.isTextBased() && !ch.isDMBased()) {
+      await (ch as TextChannel).send({ embeds: [embed] });
+    }
+  } catch {}
+}
 
 export async function handleOpenSupportTicket(interaction: ButtonInteraction) {
   const modal = new ModalBuilder()
@@ -86,6 +99,17 @@ export async function handleSupportTicketSubmit(interaction: ModalSubmitInteract
   await ticketChannel.send({ content: `<@${interaction.user.id}>`, embeds, components });
 
   await interaction.editReply({ content: `Your ticket has been created: <#${ticketChannel.id}>` });
+
+  await sendLog(interaction, new EmbedBuilder()
+    .setColor(0x2563eb)
+    .setTitle("📋 Support Ticket Created")
+    .setDescription(
+      `**User:** <@${interaction.user.id}> (\`${interaction.user.username}\`)\n` +
+      `**Issue:** ${issueType}\n` +
+      `**Channel:** <#${ticketChannel.id}>`
+    )
+    .setTimestamp()
+  );
 }
 
 export async function handleRequestMiddleman(interaction: ButtonInteraction) {
@@ -172,6 +196,18 @@ export async function handleMiddlemanTicketSubmit(interaction: ModalSubmitIntera
   await ticketChannel.send({ content: `<@${interaction.user.id}>`, embeds, components });
 
   await interaction.editReply({ content: `Your Middleman ticket has been created: <#${ticketChannel.id}>` });
+
+  await sendLog(interaction, new EmbedBuilder()
+    .setColor(0x16a34a)
+    .setTitle("🤝 Middleman Ticket Created")
+    .setDescription(
+      `**User:** <@${interaction.user.id}> (\`${interaction.user.username}\`)\n` +
+      `**Other Trader:** ${otherTrader}\n` +
+      `**Trade Type:** ${tradeType}\n` +
+      `**Channel:** <#${ticketChannel.id}>`
+    )
+    .setTimestamp()
+  );
 }
 
 const MM_ROLE_ID = "1481044272756166801";
@@ -231,7 +267,25 @@ export async function handleClaimTicket(interaction: ButtonInteraction) {
 export async function handleDeleteTicket(interaction: ButtonInteraction) {
   const channel = interaction.channel;
   if (!channel) return;
+
+  const ticket = await Ticket.findOne({ channelId: channel.id });
+  const ticketType = ticket?.ticketType ?? "unknown";
+  const ticketUser = ticket?.userId;
+
   await interaction.reply({ content: "Closing ticket..." });
+
+  await sendLog(interaction, new EmbedBuilder()
+    .setColor(0xef4444)
+    .setTitle("🗑️ Ticket Closed")
+    .setDescription(
+      `**Channel:** \`${"name" in channel ? (channel as TextChannel).name : channel.id}\`\n` +
+      `**Closed By:** <@${interaction.user.id}> (\`${interaction.user.username}\`)\n` +
+      `**Type:** ${ticketType}` +
+      (ticketUser ? `\n**Owner:** <@${ticketUser}>` : "")
+    )
+    .setTimestamp()
+  );
+
   await Ticket.deleteOne({ channelId: channel.id });
   setTimeout(() => channel.delete().catch(() => {}), 3000);
 }
