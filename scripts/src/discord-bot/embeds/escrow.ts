@@ -18,14 +18,15 @@ export function buildEscrowEmbed(preset: MarketplacePreset, bannerUrl: string) {
       `> **3. Delivery —** The seller delivers the agreed item or service\n` +
       `> **4. Release —** The buyer confirms completion and funds are released\n\n` +
       `# **Supported Currencies**\n\n` +
-      `> Bitcoin (BTC)\n` +
-      `> Ethereum (ETH)\n` +
-      `> Litecoin (LTC)\n` +
-      `> Solana (SOL)\n` +
-      `> USDT (ERC-20)\n` +
-      `> USDC (ERC-20)\n` +
-      `> USDT (SOL)\n` +
-      `> USDC (SOL)\n\n` +
+      `> <:echobtc:1513916482294120640> Bitcoin (BTC)\n` +
+      `> <:echpaypal:1513916484802445332> PayPal (PP)\n` +
+      `> <:echoeth:1513916818962649108> Ethereum (ETH)\n` +
+      `> <:echoltc:1513916480427786311> Litecoin (LTC)\n` +
+      `> <:echosol:1513916493803552798> Solana (SOL)\n` +
+      `> <:echousdt:1513916491328655410> USDT (ERC-20)\n` +
+      `> <:echousdc:1513916486627102976> USDC (ERC-20)\n` +
+      `> <:echousdt:1513916491328655410> USDT (SOL)\n` +
+      `> <:echousdc:1513916486627102976> USDC (SOL)\n\n` +
       `> ⚠ All transactions are monitored. Any attempt to bypass escrow or move trades to direct messages will result in a permanent ban and loss of access to the service.`
     );
 
@@ -35,15 +36,15 @@ export function buildEscrowEmbed(preset: MarketplacePreset, bannerUrl: string) {
     .setCustomId("escrow_payment_method")
     .setPlaceholder("Choose Payment Method")
     .addOptions([
-      { label: "Bitcoin (BTC)", value: "btc" },
-      { label: "PayPal (PP)", value: "paypal" },
-      { label: "Ethereum (ETH)", value: "eth" },
-      { label: "Litecoin (LTC)", value: "ltc" },
-      { label: "Solana (SOL)", value: "sol" },
-      { label: "USDT (ERC20)", value: "usdt_erc20" },
-      { label: "USDC (ERC20)", value: "usdc_erc20" },
-      { label: "USDT (SOL)", value: "usdt_sol" },
-      { label: "USDC (SOL)", value: "usdc_sol" },
+      { label: "Bitcoin (BTC)", value: "btc", emoji: { id: "1513916482294120640", name: "echobtc" } },
+      { label: "PayPal (PP)", value: "paypal", emoji: { id: "1513916484802445332", name: "echpaypal" } },
+      { label: "Ethereum (ETH)", value: "eth", emoji: { id: "1513916818962649108", name: "echoeth" } },
+      { label: "Litecoin (LTC)", value: "ltc", emoji: { id: "1513916480427786311", name: "echoltc" } },
+      { label: "Solana (SOL)", value: "sol", emoji: { id: "1513916493803552798", name: "echosol" } },
+      { label: "USDT (ERC20)", value: "usdt_erc20", emoji: { id: "1513916491328655410", name: "echousdt" } },
+      { label: "USDC (ERC20)", value: "usdc_erc20", emoji: { id: "1513916486627102976", name: "echousdc" } },
+      { label: "USDT (SOL)", value: "usdt_sol", emoji: { id: "1513916491328655410", name: "echousdt" } },
+      { label: "USDC (SOL)", value: "usdc_sol", emoji: { id: "1513916486627102976", name: "echousdc" } },
     ]);
 
   const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu);
@@ -61,13 +62,13 @@ export function buildAutoMMPanelEmbed(
   const payLabel = paymentMethod.toUpperCase();
 
   const embed = new EmbedBuilder()
-    .setTitle(`👋 • ${preset.serverName} Middleman Service`)
+    .setTitle(`👋 - ${preset.serverName} Middleman Service`)
     .setColor(preset.color)
     .setDescription(
       `——————————————————\n` +
       `Hello ${senderUserId ? `<@${senderUserId}>` : "@user"} & ${receiverUserId ? `<@${receiverUserId}>` : "@user"}! Welcome to the automated Middleman system.\n\n` +
       `Please follow the steps below carefully to continue your trade.\n\n` +
-      `### <:echomem:1513916469036060753> • Select Your Role\n` +
+      `### <:echomem:1513916469036060753> - Select Your Role\n` +
       `> Choose your position in this transaction:\n\n` +
       `> - **Sender** → You are sending ${payLabel} through the bot\n` +
       `> - **Receiver** → You are receiving ${payLabel} after completion\n\n` +
