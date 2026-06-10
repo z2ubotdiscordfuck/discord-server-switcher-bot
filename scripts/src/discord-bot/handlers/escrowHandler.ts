@@ -349,7 +349,8 @@ export async function handleAutoMMConfirmAmount(interaction: ButtonInteraction) 
 
   const controlRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder().setCustomId("automm_payment_sent").setLabel("I Have Sent Payment").setStyle(ButtonStyle.Success),
-    new ButtonBuilder().setCustomId("claim_ticket").setLabel("Claim Ticket").setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId("automm_staff_confirm").setLabel("Confirm Payment").setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId("claim_ticket").setLabel("Claim Ticket").setStyle(ButtonStyle.Secondary),
     new ButtonBuilder().setCustomId("add_user_ticket").setLabel("Add User").setStyle(ButtonStyle.Secondary),
     new ButtonBuilder().setCustomId("delete_ticket").setLabel("Delete Ticket").setStyle(ButtonStyle.Danger)
   );
@@ -408,8 +409,9 @@ export async function handleAutoMMPaymentSent(interaction: ButtonInteraction) {
   if (bannerUrl) statusEmbed.setImage(bannerUrl);
 
   const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder().setCustomId("automm_staff_confirm").setLabel("Confirm Payment").setStyle(ButtonStyle.Primary),
     new ButtonBuilder().setCustomId("automm_complete").setLabel("Mark Complete").setStyle(ButtonStyle.Success),
-    new ButtonBuilder().setCustomId("claim_ticket").setLabel("Claim Ticket").setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId("claim_ticket").setLabel("Claim Ticket").setStyle(ButtonStyle.Secondary),
     new ButtonBuilder().setCustomId("delete_ticket").setLabel("Delete Ticket").setStyle(ButtonStyle.Danger)
   );
 
@@ -553,6 +555,138 @@ export async function sendTradeConfirmationToChannel(
   } catch {
     return "Failed to send confirmation — check channel permissions.";
   }
+}
+
+// ─── Staff: Confirm Payment → send confirmed message with Release/Refund ──────
+const MM_ROLE_ID = "1481044272756166801";
+
+export async function handleAutoMMStaffConfirm(interaction: ButtonInteraction) {
+  const guild = interaction.guild;
+  if (!guild) return;
+
+  const member = await guild.members.fetch(interaction.user.id).catch(() => null);
+  if (!member?.roles.cache.has(MM_ROLE_ID)) {
+    await interaction.reply({ content: "Only **Head Middleman** or above can confirm payments.", flags: MessageFlags.Ephemeral });
+    return;
+  }
+
+  const escrow = await EscrowTicket.findOne({ channelId: interaction.channelId });
+  if (!escrow) {
+    await interaction.reply({ content: "Escrow ticket not found.", flags: MessageFlags.Ephemeral });
+    return;
+  }
+
+  const currLabel = getCurrencyLabel(escrow.paymentMethod);
+  const currEmoji = getCurrencyEmoji(escrow.paymentMethod);
+  const networkLabels: Record<string, string> = {
+    btc: "BTC", eth: "ETH", ltc: "LTC", sol: "SOL",
+    usdt_erc20: "USDT ERC-20", usdc_erc20: "USDC ERC-20",
+    usdt_sol: "USDT SPL", usdc_sol: "USDC SPL", paypal: "PayPal",
+  };
+  const networkLabel = networkLabels[escrow.paymentMethod] ?? currLabel;
+  const cryptoAmount = escrow.cryptoAmount ?? "N/A";
+  const usdAmount = (escrow.usdAmount ?? 0).toFixed(2);
+
+  escrow.status = "payment_detected";
+  await escrow.save();
+
+  const desc =
+    `${currEmoji} **${cryptoAmount}** ${networkLabel} ($${usdAmount} USD) confirmed.\n\n` +
+    `<@${escrow.senderUserId}> — proceed with the trade and provide the items.\n` +
+    `<@${escrow.receiverUserId}> — release funds once you've received the items.\n\n` +
+    `> Refund goes to <@${escrow.senderUserId}> on cancel. Wrong person? Open a support ticket.\n\n` +
+    `Make sure to keep all messages in this ticket and record when giving/receiving the items.`;
+
+  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder().setCustomId("automm_release").setLabel("Release Funds").setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId("automm_refund").setLabel("Refund Payment").setStyle(ButtonStyle.Danger)
+  );
+
+  await interaction.reply({ content: desc, components: [row] });
+}
+
+// ─── Staff: Release funds ─────────────────────────────────────────────────────
+export async function handleAutoMMRelease(interaction: ButtonInteraction) {
+  const guild = interaction.guild;
+  if (!guild) return;
+
+  const member = await guild.members.fetch(interaction.user.id).catch(() => null);
+  if (!member?.roles.cache.has(MM_ROLE_ID)) {
+    await interaction.reply({ content: "Only **Head Middleman** or above can release funds.", flags: MessageFlags.Ephemeral });
+    return;
+  }
+
+  const escrow = await EscrowTicket.findOne({ channelId: interaction.channelId });
+  if (!escrow) {
+    await interaction.reply({ content: "Escrow ticket not found.", flags: MessageFlags.Ephemeral });
+    return;
+  }
+
+  const currLabel = getCurrencyLabel(escrow.paymentMethod);
+  const currEmoji = getCurrencyEmoji(escrow.paymentMethod);
+
+  escrow.status = "completed";
+  await escrow.save();
+
+  const { preset, bannerUrl } = await getPresetAndBanner(interaction.guildId!);
+
+  const embed = new EmbedBuilder()
+    .setColor(0x16a34a)
+    .setDescription(
+      `### <:echocheck:1513916473976950824> - Funds Released\n\n` +
+      `Payment of \`${escrow.cryptoAmount} ${currEmoji} ${currLabel}\` has been **released** to <@${escrow.receiverUserId}>.\n\n` +
+      `**Sender:** <@${escrow.senderUserId}> | **Receiver:** <@${escrow.receiverUserId}>\n\n` +
+      `> Trade complete. Please vouch for the Middleman in the vouch channel within **24 hours**.`
+    );
+  if (bannerUrl) embed.setImage(bannerUrl);
+
+  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder().setCustomId("delete_ticket").setLabel("Close Ticket").setStyle(ButtonStyle.Danger)
+  );
+
+  await interaction.reply({ embeds: [embed], components: [row] });
+}
+
+// ─── Staff: Refund payment ────────────────────────────────────────────────────
+export async function handleAutoMMRefund(interaction: ButtonInteraction) {
+  const guild = interaction.guild;
+  if (!guild) return;
+
+  const member = await guild.members.fetch(interaction.user.id).catch(() => null);
+  if (!member?.roles.cache.has(MM_ROLE_ID)) {
+    await interaction.reply({ content: "Only **Head Middleman** or above can issue refunds.", flags: MessageFlags.Ephemeral });
+    return;
+  }
+
+  const escrow = await EscrowTicket.findOne({ channelId: interaction.channelId });
+  if (!escrow) {
+    await interaction.reply({ content: "Escrow ticket not found.", flags: MessageFlags.Ephemeral });
+    return;
+  }
+
+  const currLabel = getCurrencyLabel(escrow.paymentMethod);
+  const currEmoji = getCurrencyEmoji(escrow.paymentMethod);
+
+  escrow.status = "closed";
+  await escrow.save();
+
+  const { preset, bannerUrl } = await getPresetAndBanner(interaction.guildId!);
+
+  const embed = new EmbedBuilder()
+    .setColor(0xef4444)
+    .setDescription(
+      `### <a:echoexlamation:1513916464254419165> - Payment Refunded\n\n` +
+      `Payment of \`${escrow.cryptoAmount} ${currEmoji} ${currLabel}\` has been **refunded** to <@${escrow.senderUserId}>.\n\n` +
+      `**Sender:** <@${escrow.senderUserId}> | **Receiver:** <@${escrow.receiverUserId}>\n\n` +
+      `> Trade cancelled. If you have concerns, open a support ticket.`
+    );
+  if (bannerUrl) embed.setImage(bannerUrl);
+
+  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder().setCustomId("delete_ticket").setLabel("Close Ticket").setStyle(ButtonStyle.Danger)
+  );
+
+  await interaction.reply({ embeds: [embed], components: [row] });
 }
 
 // ─── Reject amount → re-enter ─────────────────────────────────────────────────
