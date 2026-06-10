@@ -7,7 +7,7 @@ RUN npm install -g pnpm@9
 COPY pnpm-workspace.yaml package.json tsconfig.base.json tsconfig.json ./
 COPY scripts/package.json scripts/package.json
 
-RUN pnpm install --frozen-lockfile --ignore-scripts
+RUN pnpm install --no-frozen-lockfile --ignore-scripts
 
 COPY scripts/ scripts/
 
