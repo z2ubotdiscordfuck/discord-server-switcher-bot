@@ -29,6 +29,9 @@ import {
   handleAutoMMPaymentSent,
   handleAutoMMComplete,
   handleAutoMMRejectAmount,
+  handleAutoMMStaffConfirm,
+  handleAutoMMRelease,
+  handleAutoMMRefund,
   sendTradeConfirmationToChannel,
 } from "./handlers/escrowHandler.js";
 import { startTradeLoop, stopTradeLoop } from "./handlers/tradeLoop.js";
@@ -195,6 +198,12 @@ client.on("interactionCreate", async (interaction) => {
         await handleAutoMMPaymentSent(interaction as ButtonInteraction);
       } else if (id === "automm_complete") {
         await handleAutoMMComplete(interaction as ButtonInteraction);
+      } else if (id === "automm_staff_confirm") {
+        await handleAutoMMStaffConfirm(interaction as ButtonInteraction);
+      } else if (id === "automm_release") {
+        await handleAutoMMRelease(interaction as ButtonInteraction);
+      } else if (id === "automm_refund") {
+        await handleAutoMMRefund(interaction as ButtonInteraction);
       }
 
     } else if (interaction.isStringSelectMenu()) {
